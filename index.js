@@ -1,7 +1,5 @@
 var mysql = require("mysql");
 var inquirer = require("inquirer");
-// var consoleTable = require("console.table");
-// const { start } = require("repl");
 
 //  create connection
 var connection = mysql.createConnection({
@@ -22,19 +20,17 @@ function start() {
         name: "action",
         type: "list",
         message: "What would you like to do?",
-        choices: ["View employee(s)", "View role(s)", "View department(s)", "Add employee", "Add role", "Add department", "Remove employee", "Remove role", "Remove department", "Update employee role", "EXIT"]
+        choices: ["View employee(s)", "View role(s)", "View department(s)", "Add employee", "Add role", "Add department", "Remove employee", "Remove role", "Remove department", "Update employee role", "Update department", "EXIT"]
     }).then(function (answer) {
-        if (answer.action === "EXIT") { 
+        console.log(answer)
+        if (answer.action === "EXIT") {
             console.clear();
             connection.end()
-        }
-        else if (answer.action === "View department(s)") {
+        } else if (answer.action === "View department(s)") {
             viewDepartments()
-        }
-        else if (answer.action === "View employee(s)") {
+        } else if (answer.action === "View employee(s)") {
             viewEmployees()
-        }
-        else if (answer.action === "View role(s)") {
+        } else if (answer.action === "View role(s)") {
             viewRoles()
         } else if (answer.action === "Add department") {
             addDepartment()
@@ -42,7 +38,15 @@ function start() {
             addRole()
         } else if (answer.action === "Add employee") {
             addEmployee()
-        }
+        } else if (answer.action === "Remove employee") {
+            removeEmployee()
+        } else if (answer.action === "Remove department") {
+            removeDepartment()
+        } else if (answer.action === "Remove role") {
+            removeRole()
+        } else if (answer.action === "Update employee role") {
+            updateEmployee()
+        } 
 
     })
 }
@@ -69,6 +73,11 @@ function addEmployee() {
             message: "What is the employees role? (enter Role ID)"
         }
     ]).then(function (answer) {
+        connection.query("INSERT INTO employee SET ?", {
+            first_name: answer.firstName,
+            last_name: answer.lastName,
+            role_id: answer.role
+        })
         var roleID = connection.query("SELECT id FROM role")
         var roleName = connection.query("SELECT title FROM role")
         if (answer.role === roleID) {
@@ -87,11 +96,15 @@ function managerQuestion() {
             type: "input",
             message: "Who is the employees manager? (enter Manager ID)"
         }
-    ])
+    ]).then(function (answer) {
+        connection.query("INSERT INTO employee SET ?", {
+            manager_id: answer.manager
+        })
+    })
 }
 
 function viewDepartments() {
-    connection.query("SELECT name FROM department", function (err, res) {
+    connection.query("SELECT title FROM department", function (err, res) {
         if (err) throw err;
         console.table(res);
         returnToMenu();
@@ -141,15 +154,15 @@ function addDepartment() {
         }
     ]).then(response => {
         connection.query("INSERT INTO department SET ?", {
-            name: response.theDepartment
+            title: response.theDepartment
         }),
             function (err, res) {
                 if (err) throw err;
                 console.log("Added " + res.affectedRows + " department!");
-                viewDepartments();
             }
+        returnToMenu();
     })
-};
+}
 
 function addRole() {
     inquirer.prompt([
@@ -181,17 +194,85 @@ function addRole() {
         returnToMenu();
     }
     )
-};
+}
+
+
 
 function removeEmployee() {
     inquirer.prompt([
         {
             name: "whichEmployee",
-            type: "list",
-            message: "Which employee?",
-            choices: [viewEmployees()]
+            type: "input",
+            message: "ID of employee you'd like to remove?"
         }
     ]).then(answer => {
-        ("REMOVE ? FROM employee")
+        connection.query("DELETE FROM employee WHERE ?", {
+            id: answer.whichEmployee
+        }), function (err, res) {
+            if (err) throw err;
+            console.log("Removed  " + res.affectedRows + "!");
+        }
+        returnToMenu();
+    })
+}
+
+function removeDepartment() {
+    inquirer.prompt([
+        {
+            name: "whichDepartment",
+            type: "input",
+            message: "Please enter the department you wish to remove."
+        }
+    ]).then(answer => {
+        connection.query("DELETE FROM department WHERE ?", {
+            title: answer.whichDepartment
+        }), function (err, res) {
+            if (err) throw err;
+            console.log("Removed  " + res.affectedRows + "!");
+        }
+        returnToMenu();
+    })
+}
+
+function removeRole() {
+    inquirer.prompt([
+        {
+            name: "whichRole",
+            type: "input",
+            message: "Please enter the role you wish to remove."
+        }
+    ]).then(answer => {
+        connection.query("DELETE FROM role WHERE ?", {
+            title: answer.whichRole
+        }), function (err, res) {
+            if (err) throw err;
+            console.log("Removed  " + res.affectedRows + "!");
+        }
+        returnToMenu();
+    })
+}
+
+function updateEmployee() {
+    inquirer.prompt([
+        {
+            name: "employee",
+            type: "input",
+            message: "Who would you like to update? (enter employee ID)"
+        },
+        {
+            name: "toWhat",
+            type: "input",
+            message: "What is their new role?"
+        }
+
+    ]).then(answer => {
+        connection.query("UPDATE employee SET role_id = ? WHERE id = ?", [
+            answer.toWhat,
+            answer.employee
+    ]), function (err, res) {
+            if (err) throw err;
+            console.log("Updated to  " + res.affectedRows + "!");
+        }
+        returnToMenu();
     })
 }
